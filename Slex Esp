@@ -1,206 +1,167 @@
-if not game:IsLoaded() then game.Loaded:Wait() end
-
--- SERVICES
+--// Services
 local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
-local RS = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
--- SETTINGS
-local cfg = {
-    Box = false,
-    Skeleton = false,
-    Health = false,
-    Name = false,
-    Color = Color3.fromRGB(255, 80, 80)
-}
+--// Settings
+local ESP_ENABLED = true
+local BOX_ENABLED = true
+local NAME_ENABLED = true
+local DISTANCE_ENABLED = true
+local HEALTH_ENABLED = true
 
--- ESP STORAGE
-local ESP = {}
+local BOX_COLOR = Color3.fromRGB(0,255,0)
+local HEALTH_COLOR = Color3.fromRGB(0,255,0)
+local TEXT_COLOR = Color3.fromRGB(255,255,255)
 
--- ================= GUI =================
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "SlexESP"
+local ESP_OBJECTS = {}
 
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 520, 0, 320)
-main.Position = UDim2.new(0.5, -260, 0.5, -160)
-main.BackgroundColor3 = Color3.fromRGB(20,20,20)
-main.BorderSizePixel = 0
-main.Active = true
-main.Draggable = true
-
-local side = Instance.new("Frame", main)
-side.Size = UDim2.new(0,120,1,0)
-side.BackgroundColor3 = Color3.fromRGB(25,25,25)
-
-local content = Instance.new("Frame", main)
-content.Position = UDim2.new(0,120,0,0)
-content.Size = UDim2.new(1,-120,1,0)
-content.BackgroundColor3 = Color3.fromRGB(30,30,30)
-
-local title = Instance.new("TextLabel", side)
-title.Size = UDim2.new(1,0,0,50)
-title.Text = "Visuals"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.TextColor3 = Color3.new(1,1,1)
-title.BackgroundTransparency = 1
-
-local function Toggle(text, y, flag)
-    local b = Instance.new("TextButton", content)
-    b.Size = UDim2.new(0,220,0,40)
-    b.Position = UDim2.new(0,30,0,y)
-    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    b.BorderSizePixel = 0
-    b.Text = ""
-
-    local t = Instance.new("TextLabel", b)
-    t.Size = UDim2.new(1,-50,1,0)
-    t.Position = UDim2.new(0,10,0,0)
-    t.Text = text
-    t.Font = Enum.Font.Gotham
-    t.TextSize = 14
-    t.TextColor3 = Color3.new(1,1,1)
-    t.BackgroundTransparency = 1
-    t.TextXAlignment = Left
-
-    local check = Instance.new("TextLabel", b)
-    check.Size = UDim2.new(0,40,1,0)
-    check.Position = UDim2.new(1,-40,0,0)
-    check.Font = Enum.Font.GothamBold
-    check.TextSize = 20
-    check.BackgroundTransparency = 1
-
-    local function refresh()
-        check.Text = cfg[flag] and "✓" or "○"
-        check.TextColor3 = cfg[flag] and Color3.fromRGB(0,255,0) or Color3.fromRGB(120,120,120)
-    end
-    refresh()
-
-    b.MouseButton1Click:Connect(function()
-        cfg[flag] = not cfg[flag]
-        refresh()
-    end)
+--// Functions
+local function WorldToScreen(pos)
+	local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
+	return Vector2.new(screenPos.X, screenPos.Y), onScreen
 end
 
-Toggle("Box ESP", 40, "Box")
-Toggle("Skeleton ESP", 90, "Skeleton")
-Toggle("Health ESP", 140, "Health")
-Toggle("Name ESP", 190, "Name")
+local function CreateESP(player)
+	if player == LocalPlayer then return end
 
--- ================= BONES =================
-local R15 = {
- {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
- {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
- {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
- {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
- {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}
-}
+	local box = Drawing.new("Square")
+	box.Thickness = 1
+	box.Filled = false
+	box.Color = BOX_COLOR
+	box.Visible = false
 
-local R6 = {
- {"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},
- {"Torso","Left Leg"},{"Torso","Right Leg"}
-}
+	local name = Drawing.new("Text")
+	name.Size = 13
+	name.Center = true
+	name.Outline = true
+	name.Color = TEXT_COLOR
+	name.Visible = false
 
--- ================= ESP CREATE =================
-local function CreateESP(plr)
-    if ESP[plr] then return end
-    ESP[plr] = {
-        Box = Drawing.new("Square"),
-        Name = Drawing.new("Text"),
-        HB = Drawing.new("Square"),
-        HBBG = Drawing.new("Square"),
-        Skel = {}
-    }
-    ESP[plr].Box.Thickness = 2
-    ESP[plr].Box.Filled = false
-    ESP[plr].Name.Size = 16
-    ESP[plr].Name.Center = true
-    ESP[plr].Name.Outline = true
-    ESP[plr].HB.Filled = true
-    ESP[plr].HBBG.Filled = true
+	local distance = Drawing.new("Text")
+	distance.Size = 12
+	distance.Center = true
+	distance.Outline = true
+	distance.Color = TEXT_COLOR
+	distance.Visible = false
+
+	local healthbar = Drawing.new("Line")
+	healthbar.Thickness = 2
+	healthbar.Color = HEALTH_COLOR
+	healthbar.Visible = false
+
+	ESP_OBJECTS[player] = {
+		Box = box,
+		Name = name,
+		Distance = distance,
+		Health = healthbar
+	}
 end
 
--- ================= RENDER =================
-RS.RenderStepped:Connect(function()
-    for plr, e in pairs(ESP) do
-        local c = plr.Character
-        local h = c and c:FindFirstChildOfClass("Humanoid")
-        local hrp = c and c:FindFirstChild("HumanoidRootPart")
-        if not (c and h and hrp) then
-            for _,v in pairs(e) do
-                if typeof(v)=="table" then
-                    for _,l in ipairs(v) do l.Visible=false end
-                else
-                    v.Visible=false
-                end
-            end
-            continue
-        end
+local function RemoveESP(player)
+	if ESP_OBJECTS[player] then
+		for _,v in pairs(ESP_OBJECTS[player]) do
+			v:Remove()
+		end
+		ESP_OBJECTS[player] = nil
+	end
+end
 
-        local cf, sz = c:GetBoundingBox()
-        local tl, on = Camera:WorldToViewportPoint(cf.Position + Vector3.new(-sz.X, sz.Y, 0)/2)
-        local br = Camera:WorldToViewportPoint(cf.Position + Vector3.new(sz.X, -sz.Y, 0)/2)
-        if not on then continue end
+--// Update Loop
+RunService.RenderStepped:Connect(function()
+	if not ESP_ENABLED then
+		for _,esp in pairs(ESP_OBJECTS) do
+			for _,v in pairs(esp) do
+				v.Visible = false
+			end
+		end
+		return
+	end
 
-        local w = br.X - tl.X
-        local hgt = br.Y - tl.Y
-        local col = cfg.Color
+	for player,esp in pairs(ESP_OBJECTS) do
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
-        -- BOX
-        e.Box.Visible = cfg.Box
-        e.Box.Size = Vector2.new(w, hgt)
-        e.Box.Position = Vector2.new(tl.X, tl.Y)
-        e.Box.Color = col
+		if char and hum and hrp and hum.Health > 0 then
+			local pos, onscreen = WorldToScreen(hrp.Position)
+			if onscreen then
+				local height = (Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3,0)).Y -
+							   Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3,0)).Y)
+				local width = height / 2
 
-        -- NAME
-        e.Name.Visible = cfg.Name
-        e.Name.Text = plr.Name
-        e.Name.Position = Vector2.new(tl.X + w/2, tl.Y - 15)
-        e.Name.Color = col
+				-- Box
+				if BOX_ENABLED then
+					esp.Box.Size = Vector2.new(width, height)
+					esp.Box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
+					esp.Box.Visible = true
+				else
+					esp.Box.Visible = false
+				end
 
-        -- HEALTH
-        local hp = math.clamp(h.Health / h.MaxHealth, 0, 1)
-        e.HBBG.Visible = cfg.Health
-        e.HB.Visible = cfg.Health
-        e.HBBG.Size = Vector2.new(4, hgt)
-        e.HBBG.Position = Vector2.new(tl.X - 6, tl.Y)
-        e.HBBG.Color = Color3.fromRGB(20,20,20)
-        e.HB.Size = Vector2.new(4, hgt * hp)
-        e.HB.Position = Vector2.new(tl.X - 6, tl.Y + (hgt - hgt * hp))
-        e.HB.Color = Color3.fromRGB(255*(1-hp),255*hp,0)
+				-- Name
+				if NAME_ENABLED then
+					esp.Name.Text = player.Name
+					esp.Name.Position = Vector2.new(pos.X, pos.Y - height/2 - 14)
+					esp.Name.Visible = true
+				else
+					esp.Name.Visible = false
+				end
 
-        -- SKELETON
-        local bones = c:FindFirstChild("UpperTorso") and R15 or R6
-        for i,b in ipairs(bones) do
-            e.Skel[i] = e.Skel[i] or Drawing.new("Line")
-            local a = c:FindFirstChild(b[1])
-            local d = c:FindFirstChild(b[2])
-            if cfg.Skeleton and a and d then
-                local p1,v1 = Camera:WorldToViewportPoint(a.Position)
-                local p2,v2 = Camera:WorldToViewportPoint(d.Position)
-                e.Skel[i].Visible = v1 and v2
-                e.Skel[i].From = Vector2.new(p1.X,p1.Y)
-                e.Skel[i].To = Vector2.new(p2.X,p2.Y)
-                e.Skel[i].Thickness = 2
-                e.Skel[i].Color = col
-            else
-                e.Skel[i].Visible = false
-            end
-        end
-    end
+				-- Distance
+				if DISTANCE_ENABLED then
+					local dist = math.floor((Camera.CFrame.Position - hrp.Position).Magnitude)
+					esp.Distance.Text = dist .. "m"
+					esp.Distance.Position = Vector2.new(pos.X, pos.Y + height/2)
+					esp.Distance.Visible = true
+				else
+					esp.Distance.Visible = false
+				end
+
+				-- Health
+				if HEALTH_ENABLED then
+					local hpPercent = hum.Health / hum.MaxHealth
+					esp.Health.From = Vector2.new(pos.X - width/2 - 4, pos.Y + height/2)
+					esp.Health.To = Vector2.new(
+						pos.X - width/2 - 4,
+						pos.Y + height/2 - (height * hpPercent)
+					)
+					esp.Health.Color = Color3.fromRGB(
+						255 - (255 * hpPercent),
+						255 * hpPercent,
+						0
+					)
+					esp.Health.Visible = true
+				else
+					esp.Health.Visible = false
+				end
+			else
+				for _,v in pairs(esp) do
+					v.Visible = false
+				end
+			end
+		else
+			for _,v in pairs(esp) do
+				v.Visible = false
+			end
+		end
+	end
 end)
 
-for _,p in ipairs(Players:GetPlayers()) do
-    if p ~= LP then CreateESP(p) end
+--// Player Handling
+for _,p in pairs(Players:GetPlayers()) do
+	CreateESP(p)
 end
-Players.PlayerAdded:Connect(CreateESP)
 
--- INSERT TOGGLE
-UIS.InputBegan:Connect(function(i,g)
-    if not g and i.KeyCode == Enum.KeyCode.Insert then
-        main.Visible = not main.Visible
-    end
+Players.PlayerAdded:Connect(CreateESP)
+Players.PlayerRemoving:Connect(RemoveESP)
+
+--// Toggle (Insert)
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.Insert then
+		ESP_ENABLED = not ESP_ENABLED
+	end
 end)
