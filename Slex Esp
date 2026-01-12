@@ -1,202 +1,220 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Services
+-- SERVICES
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
+local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
--- Settings
-local settings = {
-    Enabled = true,
+-- SETTINGS
+local cfg = {
     Box = true,
     Skeleton = true,
     Health = true,
-    Names = true,
-    Color = Color3.fromRGB(255, 80, 80)
+    Name = true,
+    Color = Color3.fromRGB(255,80,80)
 }
 
 local ESP = {}
 
--- ===== GUI =====
+-- ================= GUI =================
 local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "SlexProjectESP"
+gui.Name = "SlexUI"
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 220, 0, 230)
-frame.Position = UDim2.new(0.8, 0, 0.5, -115)
-frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0,520,0,320)
+main.Position = UDim2.new(0.5,-260,0.5,-160)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.BorderSizePixel = 0
+main.Visible = true
+main.Active = true
+main.Draggable = true
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,25)
-title.BackgroundColor3 = Color3.fromRGB(55,55,55)
-title.Text = "Slex Project"
-title.TextColor3 = Color3.new(1,1,1)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 13
+local sidebar = Instance.new("Frame", main)
+sidebar.Size = UDim2.new(0,120,1,0)
+sidebar.BackgroundColor3 = Color3.fromRGB(25,25,25)
 
-local function Toggle(text, y, key)
-    local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(1,-20,0,30)
-    btn.Position = UDim2.new(0,10,0,y)
-    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    btn.BorderSizePixel = 0
-    btn.Text = ""
-    btn.AutoButtonColor = false
+local content = Instance.new("Frame", main)
+content.Position = UDim2.new(0,120,0,0)
+content.Size = UDim2.new(1,-120,1,0)
+content.BackgroundColor3 = Color3.fromRGB(30,30,30)
 
-    local lbl = Instance.new("TextLabel", btn)
-    lbl.Size = UDim2.new(1,-40,1,0)
-    lbl.Position = UDim2.new(0,10,0,0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.TextColor3 = Color3.new(1,1,1)
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextSize = 13
-    lbl.TextXAlignment = Left
+local function sideBtn(txt,y)
+    local b = Instance.new("TextButton", sidebar)
+    b.Size = UDim2.new(1,0,0,40)
+    b.Position = UDim2.new(0,0,0,y)
+    b.Text = txt
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 13
+    b.TextColor3 = Color3.new(1,1,1)
+    b.BackgroundTransparency = 1
+    return b
+end
 
-    local mark = Instance.new("TextLabel", btn)
-    mark.Size = UDim2.new(0,30,1,0)
-    mark.Position = UDim2.new(1,-30,0,0)
-    mark.BackgroundTransparency = 1
-    mark.Font = Enum.Font.GothamBold
-    mark.TextSize = 16
+sideBtn("Main",0)
+sideBtn("Visuals",40)
+sideBtn("Player",80)
+sideBtn("Weapons",120)
+sideBtn("Game",160)
+sideBtn("Credits",200)
+
+local function toggle(txt,y,flag)
+    local b = Instance.new("TextButton", content)
+    b.Size = UDim2.new(0,200,0,35)
+    b.Position = UDim2.new(0,20,0,y)
+    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    b.BorderSizePixel = 0
+    b.Text = ""
+
+    local t = Instance.new("TextLabel", b)
+    t.Size = UDim2.new(1,-40,1,0)
+    t.Position = UDim2.new(0,10,0,0)
+    t.Text = txt
+    t.Font = Enum.Font.Gotham
+    t.TextSize = 13
+    t.TextColor3 = Color3.new(1,1,1)
+    t.BackgroundTransparency = 1
+    t.TextXAlignment = Left
+
+    local m = Instance.new("TextLabel", b)
+    m.Size = UDim2.new(0,30,1,0)
+    m.Position = UDim2.new(1,-30,0,0)
+    m.Font = Enum.Font.GothamBold
+    m.TextSize = 18
+    m.BackgroundTransparency = 1
 
     local function refresh()
-        mark.Text = settings[key] and "✓" or "○"
-        mark.TextColor3 = settings[key] and Color3.fromRGB(0,255,0) or Color3.fromRGB(120,120,120)
+        m.Text = cfg[flag] and "✓" or "○"
+        m.TextColor3 = cfg[flag] and Color3.fromRGB(0,255,0) or Color3.fromRGB(120,120,120)
     end
-
     refresh()
-    btn.MouseButton1Click:Connect(function()
-        settings[key] = not settings[key]
+
+    b.MouseButton1Click:Connect(function()
+        cfg[flag] = not cfg[flag]
         refresh()
     end)
 end
 
-Toggle("Box ESP", 35, "Box")
-Toggle("Skeleton ESP", 70, "Skeleton")
-Toggle("Health ESP", 105, "Health")
-Toggle("Name ESP", 140, "Names")
+toggle("Box ESP",20,"Box")
+toggle("Skeleton ESP",60,"Skeleton")
+toggle("Health ESP",100,"Health")
+toggle("Name ESP",140,"Name")
 
--- ===== SKELETON BONES =====
-local BonesR15 = {
-    {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
-    {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
-    {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
-    {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
-    {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}
+-- ================= BONES =================
+local R15 = {
+ {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
+ {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+ {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+ {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+ {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}
 }
 
-local BonesR6 = {
-    {"Head","Torso"},
-    {"Torso","Left Arm"},{"Torso","Right Arm"},
-    {"Torso","Left Leg"},{"Torso","Right Leg"}
+local R6 = {
+ {"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},
+ {"Torso","Left Leg"},{"Torso","Right Leg"}
 }
 
--- ===== ESP CREATE =====
-local function CreateESP(plr)
-    if ESP[plr] then return end
-
-    local data = {
+-- ================= ESP =================
+local function newESP(p)
+    if ESP[p] then return end
+    ESP[p] = {
         Box = Drawing.new("Square"),
-        HealthBar = Drawing.new("Square"),
-        HealthBG = Drawing.new("Square"),
         Name = Drawing.new("Text"),
-        Skeleton = {}
+        HB = Drawing.new("Square"),
+        HBBG = Drawing.new("Square"),
+        Skel = {}
     }
 
-    data.Box.Thickness = 1
-    data.Box.Filled = false
+    ESP[p].Box.Thickness = 2
+    ESP[p].Box.Filled = false
+    ESP[p].Name.Size = 16
+    ESP[p].Name.Center = true
+    ESP[p].Name.Outline = true
+    ESP[p].HB.Filled = true
+    ESP[p].HBBG.Filled = true
+end
 
-    data.HealthBG.Filled = true
-    data.HealthBG.Color = Color3.fromRGB(20,20,20)
-
-    data.HealthBar.Filled = true
-
-    data.Name.Center = true
-    data.Name.Outline = true
-    data.Name.Size = 16
-    data.Name.Font = 2
-
-    ESP[plr] = data
-
-    RunService.RenderStepped:Connect(function()
-        local char = plr.Character
-        if not char or not settings.Enabled then
-            for _,v in pairs(data) do
-                if typeof(v) == "table" then
-                    for _,l in ipairs(v) do l.Visible = false end
-                elseif v.Visible ~= nil then
-                    v.Visible = false
-                end
+RS.RenderStepped:Connect(function()
+    for p,e in pairs(ESP) do
+        local c = p.Character
+        local h = c and c:FindFirstChildOfClass("Humanoid")
+        local hrp = c and c:FindFirstChild("HumanoidRootPart")
+        if not (c and h and hrp) then
+            for _,v in pairs(e) do
+                if typeof(v)=="table" then for _,l in ipairs(v) do l.Visible=false end
+                elseif v.Visible~=nil then v.Visible=false end
             end
-            return
+            continue
         end
 
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum then return end
+        local cf,sz = c:GetBoundingBox()
+        local pts = {}
+        for x=-1,1,2 do for y=-1,1,2 do
+            local v,vis = Camera:WorldToViewportPoint(cf * Vector3.new(sz.X*x,sz.Y*y,0)/2)
+            if vis then table.insert(pts,v) end
+        end end
+        if #pts<2 then continue end
 
-        local cf, size = char:GetBoundingBox()
-        local corners = {
-            cf * Vector3.new( size.X,  size.Y, 0) / 2,
-            cf * Vector3.new(-size.X,  size.Y, 0) / 2,
-            cf * Vector3.new( size.X, -size.Y, 0) / 2,
-            cf * Vector3.new(-size.X, -size.Y, 0) / 2
-        }
-
-        local minX, minY = math.huge, math.huge
-        local maxX, maxY = -math.huge, -math.huge
-        local onScreen = false
-
-        for _,p in ipairs(corners) do
-            local v, vis = Camera:WorldToViewportPoint(p)
-            if vis then
-                onScreen = true
-                minX, minY = math.min(minX,v.X), math.min(minY,v.Y)
-                maxX, maxY = math.max(maxX,v.X), math.max(maxY,v.Y)
-            end
+        local minX,minY,maxX,maxY=1e9,1e9,0,0
+        for _,v in pairs(pts) do
+            minX,minY=math.min(minX,v.X),math.min(minY,v.Y)
+            maxX,maxY=math.max(maxX,v.X),math.max(maxY,v.Y)
         end
 
-        if not onScreen then return end
-
-        local w, h = maxX-minX, maxY-minY
-        local color = settings.Color
+        local w,hgt=maxX-minX,maxY-minY
+        local col=cfg.Color
 
         -- BOX
-        data.Box.Visible = settings.Box
-        data.Box.Size = Vector2.new(w,h)
-        data.Box.Position = Vector2.new(minX,minY)
-        data.Box.Color = color
+        e.Box.Visible=cfg.Box
+        e.Box.Size=Vector2.new(w,hgt)
+        e.Box.Position=Vector2.new(minX,minY)
+        e.Box.Color=col
 
         -- NAME
-        data.Name.Visible = settings.Names
-        data.Name.Text = plr.Name
-        data.Name.Position = Vector2.new(minX + w/2, minY - 15)
-        data.Name.Color = color
+        e.Name.Visible=cfg.Name
+        e.Name.Text=p.Name
+        e.Name.Position=Vector2.new(minX+w/2,minY-16)
+        e.Name.Color=col
 
         -- HEALTH
-        local hp = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
-        data.HealthBG.Visible = settings.Health
-        data.HealthBar.Visible = settings.Health
-
-        data.HealthBG.Size = Vector2.new(4,h)
-        data.HealthBG.Position = Vector2.new(minX-6,minY)
-
-        data.HealthBar.Size = Vector2.new(4,h*hp)
-        data.HealthBar.Position = Vector2.new(minX-6,minY + (h - h*hp))
-        data.HealthBar.Color = Color3.fromRGB(255*(1-hp),255*hp,0)
+        local hp=math.clamp(h.Health/h.MaxHealth,0,1)
+        e.HBBG.Visible=cfg.Health
+        e.HB.Visible=cfg.Health
+        e.HBBG.Size=Vector2.new(4,hgt)
+        e.HBBG.Position=Vector2.new(minX-6,minY)
+        e.HBBG.Color=Color3.fromRGB(20,20,20)
+        e.HB.Size=Vector2.new(4,hgt*hp)
+        e.HB.Position=Vector2.new(minX-6,minY+(hgt-hgt*hp))
+        e.HB.Color=Color3.fromRGB(255*(1-hp),255*hp,0)
 
         -- SKELETON
-        local bones = char:FindFirstChild("UpperTorso") and BonesR15 or BonesR6
+        local bones=c:FindFirstChild("UpperTorso") and R15 or R6
         for i,b in ipairs(bones) do
-            data.Skeleton[i] = data.Skeleton[i] or Drawing.new("Line")
-            local p1,p2 = char:FindFirstChild(b[1]), char:FindFirstChild(b[2])
-            if settings.Skeleton and p1 and p2 then
-                local a,v1 = Camera:WorldToViewportPoint(p1.Position)
-                local c,v2 = Camera:WorldToViewportPoint(p2.Position)
-                data.Skele
+            e.Skel[i]=e.Skel[i] or Drawing.new("Line")
+            local a,c2=c:FindFirstChild(b[1]),c:FindFirstChild(b[2])
+            if cfg.Skeleton and a and c2 then
+                local p1,v1=Camera:WorldToViewportPoint(a.Position)
+                local p2,v2=Camera:WorldToViewportPoint(c2.Position)
+                e.Skel[i].Visible=v1 and v2
+                e.Skel[i].From=Vector2.new(p1.X,p1.Y)
+                e.Skel[i].To=Vector2.new(p2.X,p2.Y)
+                e.Skel[i].Color=col
+                e.Skel[i].Thickness=2
+            else
+                e.Skel[i].Visible=false
+            end
+        end
+    end
+end)
+
+for _,p in ipairs(Players:GetPlayers()) do
+    if p~=LP then newESP(p) end
+end
+Players.PlayerAdded:Connect(newESP)
+
+UIS.InputBegan:Connect(function(i,g)
+    if not g and i.KeyCode==Enum.KeyCode.Insert then
+        main.Visible=not main.Visible
+    end
+end)
