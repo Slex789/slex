@@ -1,15 +1,27 @@
-if not game:IsLoaded() then
-    game.Loaded:Wait()
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+-- ===== EXECUTOR STATE SYSTEM =====
+_G.SlexState = (_G.SlexState or 0) + 1
+if _G.SlexState > 3 then _G.SlexState = 1 end
+
+local guiName = "SlexProject"
+if game.CoreGui:FindFirstChild(guiName) then
+    game.CoreGui[guiName]:Destroy()
 end
 
--- Services
+-- State 3 = everything closed
+if _G.SlexState == 3 then
+    return
+end
+
+-- ===== SERVICES =====
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- Settings
+-- ===== SETTINGS =====
 local settings = {
     Enabled = true,
     ShowNames = true,
@@ -19,66 +31,83 @@ local settings = {
     TeamColor = false,
     Font = 2,
 
-    SilentAim = false,
+    SilentAim = true,
     SilentFOV = 150
 }
 
--- ESP Storage
-local ESPCache = {}
-
--- UI
+-- ===== GUI ROOT =====
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
-screenGui.Name = "SlexProject"
+screenGui.Name = guiName
+screenGui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 200, 0, 300)
-frame.Position = UDim2.new(0.8, 0, 0.5, -140)
+frame.Size = UDim2.new(0, 220, 0, 330)
+frame.Position = UDim2.new(0.75, 0, 0.5, -165)
 frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.Draggable = true
+frame.Draggable = false
 
-local dragHandle = Instance.new("TextLabel", frame)
-dragHandle.Size = UDim2.new(1,0,0,20)
-dragHandle.BackgroundColor3 = Color3.fromRGB(60,60,60)
-dragHandle.Text = "Slex Project - ESP"
-dragHandle.TextColor3 = Color3.new(1,1,1)
-dragHandle.Font = Enum.Font.Gotham
-dragHandle.TextSize = 12
+-- ===== TOP BAR (ONLY DRAG AREA) =====
+local topBar = Instance.new("TextLabel", frame)
+topBar.Size = UDim2.new(1,0,0,24)
+topBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+topBar.TextColor3 = Color3.new(1,1,1)
+topBar.Font = Enum.Font.Gotham
+topBar.TextSize = 13
+topBar.Text = _G.SlexState == 1 and "Slex Project - ESP + Silent" or "Slex Project - Silent Only"
+topBar.Active = true
 
-local instructions = Instance.new("TextLabel", frame)
-instructions.Size = UDim2.new(1,-10,0,30)
-instructions.Position = UDim2.new(0,5,1,-35)
-instructions.BackgroundTransparency = 1
-instructions.Text = "Insert ile aç/kapat\nÜstten sürükle"
-instructions.TextColor3 = Color3.new(0.8,0.8,0.8)
-instructions.Font = Enum.Font.Gotham
-instructions.TextSize = 12
-instructions.TextWrapped = true
+-- Drag logic (ONLY top bar)
+do
+    local dragging, dragStart, startPos
+    topBar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = i.Position
+            startPos = frame.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = i.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+end
 
-local function CreateToggle(text, ypos, flag)
-    local t = Instance.new("Frame", frame)
-    t.Size = UDim2.new(1,0,0,30)
-    t.Position = UDim2.new(0,0,0,ypos)
-    t.BackgroundTransparency = 1
+-- ===== TOGGLE CREATOR =====
+local function CreateToggle(text, y, flag)
+    local f = Instance.new("Frame", frame)
+    f.Size = UDim2.new(1,0,0,30)
+    f.Position = UDim2.new(0,0,0,y)
+    f.BackgroundTransparency = 1
 
-    local b = Instance.new("TextButton", t)
-    b.Size = UDim2.new(0,120,0,25)
-    b.Position = UDim2.new(0,10,0,2)
+    local b = Instance.new("TextButton", f)
+    b.Size = UDim2.new(0,130,0,24)
+    b.Position = UDim2.new(0,10,0,3)
     b.Text = text
     b.Font = Enum.Font.Gotham
-    b.TextSize = 14
+    b.TextSize = 13
     b.TextColor3 = Color3.new(1,1,1)
     b.BackgroundColor3 = Color3.fromRGB(60,60,60)
     b.BorderSizePixel = 0
 
-    local s = Instance.new("Frame", t)
-    s.Size = UDim2.new(0,20,0,20)
-    s.Position = UDim2.new(1,-30,0,5)
+    local s = Instance.new("Frame", f)
+    s.Size = UDim2.new(0,18,0,18)
+    s.Position = UDim2.new(1,-28,0,6)
     s.BorderSizePixel = 0
 
     local function refresh()
-        s.BackgroundColor3 = settings[flag] and Color3.new(0,1,0) or Color3.new(0.2,0.2,0.2)
+        s.BackgroundColor3 = settings[flag] and Color3.fromRGB(0,200,0) or Color3.fromRGB(60,60,60)
     end
 
     b.MouseButton1Click:Connect(function()
@@ -89,72 +118,82 @@ local function CreateToggle(text, ypos, flag)
     refresh()
 end
 
-CreateToggle("Enable ESP",25,"Enabled")
-CreateToggle("Show Names",55,"ShowNames")
-CreateToggle("Show Outline",85,"ShowOutline")
-CreateToggle("Show Fill",115,"ShowFill")
-CreateToggle("Show Lines",145,"ShowLines")
-CreateToggle("Team Colors",175,"TeamColor")
-CreateToggle("Silent Aim",205,"SilentAim")
+-- ===== TOGGLES =====
+local y = 30
+if _G.SlexState == 1 then
+    CreateToggle("Enable ESP", y, "Enabled"); y += 30
+    CreateToggle("Show Names", y, "ShowNames"); y += 30
+    CreateToggle("Outline", y, "ShowOutline"); y += 30
+end
+CreateToggle("Silent Aim", y, "SilentAim"); y += 35
 
--- FOV Slider
+-- ===== FOV SLIDER (FIXED) =====
 local sliderFrame = Instance.new("Frame", frame)
 sliderFrame.Size = UDim2.new(1,-20,0,40)
-sliderFrame.Position = UDim2.new(0,10,0,235)
+sliderFrame.Position = UDim2.new(0,10,0,y)
 sliderFrame.BackgroundTransparency = 1
 
 local bar = Instance.new("Frame", sliderFrame)
 bar.Size = UDim2.new(1,0,0,6)
-bar.Position = UDim2.new(0,0,0,18)
-bar.BackgroundColor3 = Color3.fromRGB(70,70,70)
+bar.Position = UDim2.new(0,0,0,20)
+bar.BackgroundColor3 = Color3.fromRGB(80,80,80)
 bar.BorderSizePixel = 0
 
 local knob = Instance.new("Frame", bar)
-knob.Size = UDim2.new(0,10,0,16)
+knob.Size = UDim2.new(0,12,0,18)
 knob.BackgroundColor3 = Color3.new(1,1,1)
 knob.BorderSizePixel = 0
 
-local drag = false
+local dragging = false
+local function updateKnobFromValue()
+    local scale = math.clamp(settings.SilentFOV / 400, 0, 1)
+    knob.Position = UDim2.new(scale, -6, -1, 0)
+end
+updateKnobFromValue()
+
 knob.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = true end
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
 end)
 UserInputService.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
 UserInputService.InputChanged:Connect(function(i)
-    if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
-        local scale = math.clamp((i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
-        knob.Position = UDim2.new(scale,-5,-0.5,0)
-        settings.SilentFOV = math.floor(scale*400)
+    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local scale = math.clamp(
+            (i.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X,
+            0, 1
+        )
+        settings.SilentFOV = math.floor(scale * 400)
+        updateKnobFromValue()
     end
 end)
 
--- FOV Circle
+-- ===== FOV CIRCLE =====
 local circle = Drawing.new("Circle")
 circle.Thickness = 1
 circle.Filled = false
 circle.Color = Color3.new(1,1,1)
 
 RunService.RenderStepped:Connect(function()
-    circle.Position = Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2)
+    circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     circle.Radius = settings.SilentFOV
     circle.Visible = settings.SilentAim
 end)
 
--- Silent Aim Logic
+-- ===== SILENT AIM CORE =====
 local function GetTarget()
     local best, dist = nil, math.huge
     for _,plr in ipairs(Players:GetPlayers()) do
-        if plr~=Player and plr.Character then
-            local h = plr.Character:FindFirstChild("Head")
+        if plr ~= Player and plr.Character then
+            local head = plr.Character:FindFirstChild("Head")
             local hum = plr.Character:FindFirstChild("Humanoid")
-            if h and hum and hum.Health>0 then
-                local p,on = Camera:WorldToScreenPoint(h.Position)
+            if head and hum and hum.Health > 0 then
+                local p,on = Camera:WorldToScreenPoint(head.Position)
                 if on then
-                    local m = (Vector2.new(p.X,p.Y)-circle.Position).Magnitude
-                    if m<dist and m<=settings.SilentFOV then
-                        dist=m
-                        best=h.Position
+                    local m = (Vector2.new(p.X,p.Y) - circle.Position).Magnitude
+                    if m < dist and m <= settings.SilentFOV then
+                        dist = m
+                        best = head.Position
                     end
                 end
             end
@@ -169,18 +208,11 @@ local old = mt.__namecall
 mt.__namecall = newcclosure(function(self,...)
     local method = getnamecallmethod()
     local args = {...}
-    if method=="FindPartOnRayWithIgnoreList" and settings.SilentAim then
+    if method == "FindPartOnRayWithIgnoreList" and settings.SilentAim then
         local t = GetTarget()
         if t then
-            args[1]=Ray.new(Camera.CFrame.Position,(t-Camera.CFrame.Position).Unit*1000)
+            args[1] = Ray.new(Camera.CFrame.Position,(t-Camera.CFrame.Position).Unit*1000)
         end
     end
-    return old(self,unpack(args))
-end)
-
--- Insert toggle
-UserInputService.InputBegan:Connect(function(i,g)
-    if not g and i.KeyCode==Enum.KeyCode.Insert then
-        frame.Visible = not frame.Visible
-    end
+    return old(self, unpack(args))
 end)
