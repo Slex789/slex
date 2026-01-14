@@ -9,7 +9,7 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- ESP Settings
+-- Settings
 local settings = {
     Enabled = true,
     ShowNames = true,
@@ -17,189 +17,170 @@ local settings = {
     ShowFill = false,
     ShowLines = false,
     TeamColor = false,
-    Font = 2
+    Font = 2,
+
+    SilentAim = false,
+    SilentFOV = 150
 }
 
 -- ESP Storage
 local ESPCache = {}
 
--- Create UI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = game.CoreGui
+-- UI
+local screenGui = Instance.new("ScreenGui", game.CoreGui)
 screenGui.Name = "SlexProject"
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 250)
-frame.Position = UDim2.new(0.8, 0, 0.5, -110)
-frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 200, 0, 300)
+frame.Position = UDim2.new(0.8, 0, 0.5, -140)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-frame.Parent = screenGui
 
--- Drag bar
-local dragHandle = Instance.new("TextLabel")
-dragHandle.Size = UDim2.new(1, 0, 0, 20)
-dragHandle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+local dragHandle = Instance.new("TextLabel", frame)
+dragHandle.Size = UDim2.new(1,0,0,20)
+dragHandle.BackgroundColor3 = Color3.fromRGB(60,60,60)
 dragHandle.Text = "Slex Project - ESP"
-dragHandle.TextColor3 = Color3.new(1, 1, 1)
+dragHandle.TextColor3 = Color3.new(1,1,1)
 dragHandle.Font = Enum.Font.Gotham
 dragHandle.TextSize = 12
-dragHandle.Parent = frame
 
--- Instructions (Insert olarak güncellendi)
-local instructions = Instance.new("TextLabel")
-instructions.Size = UDim2.new(1, -10, 0, 30)
-instructions.Position = UDim2.new(0, 5, 1, -35)
+local instructions = Instance.new("TextLabel", frame)
+instructions.Size = UDim2.new(1,-10,0,30)
+instructions.Position = UDim2.new(0,5,1,-35)
 instructions.BackgroundTransparency = 1
 instructions.Text = "Insert ile aç/kapat\nÜstten sürükle"
-instructions.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+instructions.TextColor3 = Color3.new(0.8,0.8,0.8)
 instructions.Font = Enum.Font.Gotham
 instructions.TextSize = 12
 instructions.TextWrapped = true
-instructions.Parent = frame
 
 local function CreateToggle(text, ypos, flag)
-    local toggleFrame = Instance.new("Frame")
-    toggleFrame.Size = UDim2.new(1, 0, 0, 30)
-    toggleFrame.Position = UDim2.new(0, 0, 0, ypos)
-    toggleFrame.BackgroundTransparency = 1
-    toggleFrame.Parent = frame
+    local t = Instance.new("Frame", frame)
+    t.Size = UDim2.new(1,0,0,30)
+    t.Position = UDim2.new(0,0,0,ypos)
+    t.BackgroundTransparency = 1
 
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Size = UDim2.new(0, 120, 0, 25)
-    toggleButton.Position = UDim2.new(0, 10, 0, 2)
-    toggleButton.Text = text
-    toggleButton.TextColor3 = Color3.new(1, 1, 1)
-    toggleButton.Font = Enum.Font.Gotham
-    toggleButton.TextSize = 14
-    toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    toggleButton.BorderSizePixel = 0
-    toggleButton.Parent = toggleFrame
+    local b = Instance.new("TextButton", t)
+    b.Size = UDim2.new(0,120,0,25)
+    b.Position = UDim2.new(0,10,0,2)
+    b.Text = text
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 14
+    b.TextColor3 = Color3.new(1,1,1)
+    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    b.BorderSizePixel = 0
 
-    local stateIndicator = Instance.new("Frame")
-    stateIndicator.Size = UDim2.new(0, 20, 0, 20)
-    stateIndicator.Position = UDim2.new(1, -30, 0, 5)
-    stateIndicator.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-    stateIndicator.BorderSizePixel = 0
-    stateIndicator.Parent = toggleFrame
+    local s = Instance.new("Frame", t)
+    s.Size = UDim2.new(0,20,0,20)
+    s.Position = UDim2.new(1,-30,0,5)
+    s.BorderSizePixel = 0
 
-    toggleButton.MouseButton1Click:Connect(function()
+    local function refresh()
+        s.BackgroundColor3 = settings[flag] and Color3.new(0,1,0) or Color3.new(0.2,0.2,0.2)
+    end
+
+    b.MouseButton1Click:Connect(function()
         settings[flag] = not settings[flag]
-        stateIndicator.BackgroundColor3 =
-            settings[flag] and Color3.new(0,1,0) or Color3.new(0.2,0.2,0.2)
-        UpdateAllESP()
+        refresh()
     end)
 
-    stateIndicator.BackgroundColor3 =
-        settings[flag] and Color3.new(0,1,0) or Color3.new(0.2,0.2,0.2)
+    refresh()
 end
 
--- Toggles
-CreateToggle("Enable ESP", 25, "Enabled")
-CreateToggle("Show Names", 55, "ShowNames")
-CreateToggle("Show Outline", 85, "ShowOutline")
-CreateToggle("Show Fill", 115, "ShowFill")
-CreateToggle("Show Lines", 145, "ShowLines")
-CreateToggle("Team Colors", 175, "TeamColor")
+CreateToggle("Enable ESP",25,"Enabled")
+CreateToggle("Show Names",55,"ShowNames")
+CreateToggle("Show Outline",85,"ShowOutline")
+CreateToggle("Show Fill",115,"ShowFill")
+CreateToggle("Show Lines",145,"ShowLines")
+CreateToggle("Team Colors",175,"TeamColor")
+CreateToggle("Silent Aim",205,"SilentAim")
 
--- ESP
-local function CreateESP(player)
-    if ESPCache[player] then return end
+-- FOV Slider
+local sliderFrame = Instance.new("Frame", frame)
+sliderFrame.Size = UDim2.new(1,-20,0,40)
+sliderFrame.Position = UDim2.new(0,10,0,235)
+sliderFrame.BackgroundTransparency = 1
 
-    local esp = {
-        Highlight = Instance.new("Highlight"),
-        NameLabel = Drawing.new("Text"),
-        Line = Drawing.new("Line")
-    }
+local bar = Instance.new("Frame", sliderFrame)
+bar.Size = UDim2.new(1,0,0,6)
+bar.Position = UDim2.new(0,0,0,18)
+bar.BackgroundColor3 = Color3.fromRGB(70,70,70)
+bar.BorderSizePixel = 0
 
-    esp.Highlight.Parent = player.Character or player.CharacterAdded:Wait()
-    esp.Highlight.FillTransparency = 1
-    esp.Highlight.OutlineTransparency = 1
+local knob = Instance.new("Frame", bar)
+knob.Size = UDim2.new(0,10,0,16)
+knob.BackgroundColor3 = Color3.new(1,1,1)
+knob.BorderSizePixel = 0
 
-    esp.NameLabel.Center = true
-    esp.NameLabel.Outline = true
-    esp.NameLabel.Font = settings.Font
-    esp.NameLabel.Visible = false
-
-    esp.Line.Visible = false
-    esp.Line.Thickness = 1
-
-    ESPCache[player] = esp
-
-    esp.Connection = RunService.RenderStepped:Connect(function()
-        if not player.Character then return end
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        local head = player.Character:FindFirstChild("Head")
-        if not hrp or not head then return end
-
-        local headPos, onScreen = Camera:WorldToScreenPoint(head.Position)
-        local rootPos = Camera:WorldToViewportPoint(hrp.Position)
-
-        local color = settings.TeamColor and player.TeamColor.Color or Color3.fromHSV(
-            math.clamp((hrp.Position - Camera.CFrame.Position).Magnitude / 500, 0, 1),
-            0.75, 1
-        )
-
-        esp.Highlight.Enabled = settings.Enabled
-        esp.Highlight.FillTransparency = settings.ShowFill and 0.5 or 1
-        esp.Highlight.OutlineTransparency = settings.ShowOutline and 0 or 1
-        esp.Highlight.FillColor = color
-        esp.Highlight.OutlineColor = color
-
-        esp.NameLabel.Visible = settings.Enabled and settings.ShowNames and onScreen
-        if esp.NameLabel.Visible then
-            esp.NameLabel.Text = player.Name
-            esp.NameLabel.Position = Vector2.new(headPos.X, headPos.Y + 25)
-            esp.NameLabel.Color = color
-            esp.NameLabel.Size = 18
-        end
-
-        esp.Line.Visible = settings.Enabled and settings.ShowLines and rootPos.Z > 0
-        if esp.Line.Visible then
-            esp.Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-            esp.Line.To = Vector2.new(rootPos.X, rootPos.Y)
-            esp.Line.Color = color
-        end
-    end)
-end
-
-function UpdateAllESP()
-    for _, esp in pairs(ESPCache) do
-        esp.Highlight.Enabled = settings.Enabled
-        esp.NameLabel.Visible = settings.Enabled and settings.ShowNames
-        esp.Line.Visible = settings.Enabled and settings.ShowLines
-    end
-end
-
--- Player handling
-for _, plr in ipairs(Players:GetPlayers()) do
-    if plr ~= Player then
-        CreateESP(plr)
-    end
-end
-
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function()
-        CreateESP(plr)
-    end)
+local drag = false
+knob.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = true end
 end)
-
-Players.PlayerRemoving:Connect(function(plr)
-    local esp = ESPCache[plr]
-    if esp then
-        esp.Connection:Disconnect()
-        esp.Highlight:Destroy()
-        esp.NameLabel:Remove()
-        esp.Line:Remove()
-        ESPCache[plr] = nil
+UserInputService.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local scale = math.clamp((i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+        knob.Position = UDim2.new(scale,-5,-0.5,0)
+        settings.SilentFOV = math.floor(scale*400)
     end
 end)
 
--- INSERT ile aç / kapa (EKLENDİ)
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == Enum.KeyCode.Insert then
+-- FOV Circle
+local circle = Drawing.new("Circle")
+circle.Thickness = 1
+circle.Filled = false
+circle.Color = Color3.new(1,1,1)
+
+RunService.RenderStepped:Connect(function()
+    circle.Position = Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2)
+    circle.Radius = settings.SilentFOV
+    circle.Visible = settings.SilentAim
+end)
+
+-- Silent Aim Logic
+local function GetTarget()
+    local best, dist = nil, math.huge
+    for _,plr in ipairs(Players:GetPlayers()) do
+        if plr~=Player and plr.Character then
+            local h = plr.Character:FindFirstChild("Head")
+            local hum = plr.Character:FindFirstChild("Humanoid")
+            if h and hum and hum.Health>0 then
+                local p,on = Camera:WorldToScreenPoint(h.Position)
+                if on then
+                    local m = (Vector2.new(p.X,p.Y)-circle.Position).Magnitude
+                    if m<dist and m<=settings.SilentFOV then
+                        dist=m
+                        best=h.Position
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local mt = getrawmetatable(game)
+setreadonly(mt,false)
+local old = mt.__namecall
+mt.__namecall = newcclosure(function(self,...)
+    local method = getnamecallmethod()
+    local args = {...}
+    if method=="FindPartOnRayWithIgnoreList" and settings.SilentAim then
+        local t = GetTarget()
+        if t then
+            args[1]=Ray.new(Camera.CFrame.Position,(t-Camera.CFrame.Position).Unit*1000)
+        end
+    end
+    return old(self,unpack(args))
+end)
+
+-- Insert toggle
+UserInputService.InputBegan:Connect(function(i,g)
+    if not g and i.KeyCode==Enum.KeyCode.Insert then
         frame.Visible = not frame.Visible
     end
 end)
