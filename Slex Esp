@@ -1,218 +1,99 @@
-if not game:IsLoaded() then game.Loaded:Wait() end
-
--- ===== EXECUTOR STATE SYSTEM =====
-_G.SlexState = (_G.SlexState or 0) + 1
-if _G.SlexState > 3 then _G.SlexState = 1 end
-
-local guiName = "SlexProject"
-if game.CoreGui:FindFirstChild(guiName) then
-    game.CoreGui[guiName]:Destroy()
-end
-
--- State 3 = everything closed
-if _G.SlexState == 3 then
-    return
-end
-
--- ===== SERVICES =====
+-- Services
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 local Camera = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
--- ===== SETTINGS =====
-local settings = {
-    Enabled = true,
-    ShowNames = true,
-    ShowOutline = true,
-    ShowFill = false,
-    ShowLines = false,
-    TeamColor = false,
-    Font = 2,
-
-    SilentAim = true,
-    SilentFOV = 150
+-- Settings
+local features = {
+    silentaim = true,
+    fov = 500
 }
 
--- ===== GUI ROOT =====
-local screenGui = Instance.new("ScreenGui", game.CoreGui)
-screenGui.Name = guiName
-screenGui.ResetOnSpawn = false
+local target = nil
 
-local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 220, 0, 330)
-frame.Position = UDim2.new(0.75, 0, 0.5, -165)
-frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = false
+-- Get nearest player to mouse
+local function getnearest()
+    local nearestMagnitude = math.huge
+    local nearestEnemy = nil
 
--- ===== TOP BAR (ONLY DRAG AREA) =====
-local topBar = Instance.new("TextLabel", frame)
-topBar.Size = UDim2.new(1,0,0,24)
-topBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
-topBar.TextColor3 = Color3.new(1,1,1)
-topBar.Font = Enum.Font.Gotham
-topBar.TextSize = 13
-topBar.Text = _G.SlexState == 1 and "Slex Project - ESP + Silent" or "Slex Project - Silent Only"
-topBar.Active = true
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local char = player.Character
+            local humanoid = char:FindFirstChild("Humanoid")
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local head = char:FindFirstChild("Head")
 
--- Drag logic (ONLY top bar)
-do
-    local dragging, dragStart, startPos
-    topBar.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = i.Position
-            startPos = frame.Position
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(i)
-        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = i.Position - dragStart
-            frame.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-end
+            if humanoid and hrp and head and humanoid.Health > 0 then
+                local screenPos, onScreen = Camera:WorldToScreenPoint(hrp.Position)
+                if onScreen then
+                    -- Wall check
+                    local ray = Ray.new(
+                        Camera.CFrame.Position,
+                        (head.Position - Camera.CFrame.Position).Unit * 500
+                    )
 
--- ===== TOGGLE CREATOR =====
-local function CreateToggle(text, y, flag)
-    local f = Instance.new("Frame", frame)
-    f.Size = UDim2.new(1,0,0,30)
-    f.Position = UDim2.new(0,0,0,y)
-    f.BackgroundTransparency = 1
+                    local ignore = { LocalPlayer.Character }
+                    local hit = workspace:FindPartOnRayWithIgnoreList(ray, ignore)
 
-    local b = Instance.new("TextButton", f)
-    b.Size = UDim2.new(0,130,0,24)
-    b.Position = UDim2.new(0,10,0,3)
-    b.Text = text
-    b.Font = Enum.Font.Gotham
-    b.TextSize = 13
-    b.TextColor3 = Color3.new(1,1,1)
-    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    b.BorderSizePixel = 0
+                    if hit and hit:FindFirstAncestorOfClass("Model") then
+                        local dist = (
+                            Vector2.new(Mouse.X, Mouse.Y) -
+                            Vector2.new(screenPos.X, screenPos.Y)
+                        ).Magnitude
 
-    local s = Instance.new("Frame", f)
-    s.Size = UDim2.new(0,18,0,18)
-    s.Position = UDim2.new(1,-28,0,6)
-    s.BorderSizePixel = 0
-
-    local function refresh()
-        s.BackgroundColor3 = settings[flag] and Color3.fromRGB(0,200,0) or Color3.fromRGB(60,60,60)
-    end
-
-    b.MouseButton1Click:Connect(function()
-        settings[flag] = not settings[flag]
-        refresh()
-    end)
-
-    refresh()
-end
-
--- ===== TOGGLES =====
-local y = 30
-if _G.SlexState == 1 then
-    CreateToggle("Enable ESP", y, "Enabled"); y += 30
-    CreateToggle("Show Names", y, "ShowNames"); y += 30
-    CreateToggle("Outline", y, "ShowOutline"); y += 30
-end
-CreateToggle("Silent Aim", y, "SilentAim"); y += 35
-
--- ===== FOV SLIDER (FIXED) =====
-local sliderFrame = Instance.new("Frame", frame)
-sliderFrame.Size = UDim2.new(1,-20,0,40)
-sliderFrame.Position = UDim2.new(0,10,0,y)
-sliderFrame.BackgroundTransparency = 1
-
-local bar = Instance.new("Frame", sliderFrame)
-bar.Size = UDim2.new(1,0,0,6)
-bar.Position = UDim2.new(0,0,0,20)
-bar.BackgroundColor3 = Color3.fromRGB(80,80,80)
-bar.BorderSizePixel = 0
-
-local knob = Instance.new("Frame", bar)
-knob.Size = UDim2.new(0,12,0,18)
-knob.BackgroundColor3 = Color3.new(1,1,1)
-knob.BorderSizePixel = 0
-
-local dragging = false
-local function updateKnobFromValue()
-    local scale = math.clamp(settings.SilentFOV / 400, 0, 1)
-    knob.Position = UDim2.new(scale, -6, -1, 0)
-end
-updateKnobFromValue()
-
-knob.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
-end)
-UserInputService.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-end)
-UserInputService.InputChanged:Connect(function(i)
-    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-        local scale = math.clamp(
-            (i.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X,
-            0, 1
-        )
-        settings.SilentFOV = math.floor(scale * 400)
-        updateKnobFromValue()
-    end
-end)
-
--- ===== FOV CIRCLE =====
-local circle = Drawing.new("Circle")
-circle.Thickness = 1
-circle.Filled = false
-circle.Color = Color3.new(1,1,1)
-
-RunService.RenderStepped:Connect(function()
-    circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    circle.Radius = settings.SilentFOV
-    circle.Visible = settings.SilentAim
-end)
-
--- ===== SILENT AIM CORE =====
-local function GetTarget()
-    local best, dist = nil, math.huge
-    for _,plr in ipairs(Players:GetPlayers()) do
-        if plr ~= Player and plr.Character then
-            local head = plr.Character:FindFirstChild("Head")
-            local hum = plr.Character:FindFirstChild("Humanoid")
-            if head and hum and hum.Health > 0 then
-                local p,on = Camera:WorldToScreenPoint(head.Position)
-                if on then
-                    local m = (Vector2.new(p.X,p.Y) - circle.Position).Magnitude
-                    if m < dist and m <= settings.SilentFOV then
-                        dist = m
-                        best = head.Position
+                        if dist < nearestMagnitude and dist <= features.fov then
+                            nearestMagnitude = dist
+                            nearestEnemy = player
+                        end
                     end
                 end
             end
         end
     end
-    return best
+
+    return nearestEnemy
 end
 
+-- Ray hook
 local mt = getrawmetatable(game)
-setreadonly(mt,false)
-local old = mt.__namecall
-mt.__namecall = newcclosure(function(self,...)
+setreadonly(mt, false)
+
+local oldNamecall = mt.__namecall
+mt.__namecall = newcclosure(function(...)
     local method = getnamecallmethod()
-    local args = {...}
-    if method == "FindPartOnRayWithIgnoreList" and settings.SilentAim then
-        local t = GetTarget()
-        if t then
-            args[1] = Ray.new(Camera.CFrame.Position,(t-Camera.CFrame.Position).Unit*1000)
-        end
+    local args = { ... }
+
+    if string.find(method, "Ray") and target then
+        args[2] = Ray.new(
+            Camera.CFrame.Position,
+            (target +
+            Vector3.new(
+                0,
+                (Camera.CFrame.Position - target).Magnitude / 500,
+                0
+            ) - Camera.CFrame.Position).Unit * 500
+        )
     end
-    return old(self, unpack(args))
+
+    return oldNamecall(unpack(args))
+end)
+
+-- Main loop
+RunService:BindToRenderStep("SilentAim", 1, function()
+    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+        and features.silentaim
+        and LocalPlayer.Character
+        and LocalPlayer.Character:FindFirstChild("Humanoid")
+        and LocalPlayer.Character.Humanoid.Health > 0 then
+
+        local enemy = getnearest()
+        if enemy and enemy.Character and enemy.Character:FindFirstChild("Head") then
+            target = enemy.Character.Head.Position
+        end
+    else
+        target = nil
+    end
 end)
