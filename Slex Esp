@@ -1,99 +1,213 @@
--- Services
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local Camera = workspace.CurrentCamera
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+-- Slex ESP
 
--- Settings
-local features = {
-    silentaim = true,
-    fov = 500
+--// Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local cache = {}
+
+--// Settings
+local ESP_SETTINGS = {
+    BoxOutlineColor = Color3.new(0, 0, 0),
+    BoxColor = Color3.new(1, 1, 1),
+    FilledBoxColor = Color3.new(1, 1, 1),
+    NameColor = Color3.new(1, 1, 1),
+    HealthOutlineColor = Color3.new(0, 0, 0),
+    HealthHighColor = Color3.new(0, 1, 0),
+    HealthLowColor = Color3.new(1, 0, 0),
+    HealthColor = Color3.new(1, 1, 1),
+    DistanceColor = Color3.new(1, 1, 1),
+
+    AnimatedHealthBars = false,
+    HealthBasedColor = false,
+
+    Teamcheck = false,
+    WallCheck = false,
+
+    Enabled = false, -- INSERT ile açılacak
+    ShowFilledBox = false,
+    ShowBox = true,
+    BoxType = "Normal", -- Normal / Corner
+    ShowName = true,
+    ShowHealth = true,
+    ShowDistance = true,
+    ShowTracer = false,
+
+    TracerThickness = 1,
+    TracerPosition = "Bottom",
 }
 
-local target = nil
+--// INSERT toggle
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.Insert then
+        ESP_SETTINGS.Enabled = not ESP_SETTINGS.Enabled
+    end
+end)
 
--- Get nearest player to mouse
-local function getnearest()
-    local nearestMagnitude = math.huge
-    local nearestEnemy = nil
+--// İlk çalıştırma yazısı (4 saniye)
+local infoText = Drawing.new("Text")
+infoText.Text = "Cheat is toggled with the INSERT key"
+infoText.Size = 18
+infoText.Center = true
+infoText.Outline = true
+infoText.Color = Color3.fromRGB(255,255,255)
+infoText.Position = Vector2.new(
+    camera.ViewportSize.X / 2,
+    camera.ViewportSize.Y * 0.2
+)
+infoText.Visible = true
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local char = player.Character
-            local humanoid = char:FindFirstChild("Humanoid")
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            local head = char:FindFirstChild("Head")
+task.delay(4, function()
+    infoText:Remove()
+end)
 
-            if humanoid and hrp and head and humanoid.Health > 0 then
-                local screenPos, onScreen = Camera:WorldToScreenPoint(hrp.Position)
-                if onScreen then
-                    -- Wall check
-                    local ray = Ray.new(
-                        Camera.CFrame.Position,
-                        (head.Position - Camera.CFrame.Position).Unit * 500
-                    )
+--// Drawing creator
+local function create(class, properties)
+    local drawing = Drawing.new(class)
+    for property, value in pairs(properties) do
+        drawing[property] = value
+    end
+    return drawing
+end
 
-                    local ignore = { LocalPlayer.Character }
-                    local hit = workspace:FindPartOnRayWithIgnoreList(ray, ignore)
+--// Create ESP
+local function createEsp(player)
+    cache[player] = {
+        boxOutline = create("Square", {Thickness = 3, Filled = false}),
+        box = create("Square", {Thickness = 1, Filled = false}),
+        filledBox = create("Square", {Filled = true, Transparency = 0.3}),
+        name = create("Text", {Size = 13, Center = true, Outline = true}),
+        distance = create("Text", {Size = 12, Center = true, Outline = true}),
+        healthOutline = create("Line", {Thickness = 3}),
+        health = create("Line", {Thickness = 1}),
+        tracer = create("Line", {Thickness = ESP_SETTINGS.TracerThickness}),
+        boxLines = {}
+    }
+end
 
-                    if hit and hit:FindFirstAncestorOfClass("Model") then
-                        local dist = (
-                            Vector2.new(Mouse.X, Mouse.Y) -
-                            Vector2.new(screenPos.X, screenPos.Y)
-                        ).Magnitude
+local function removeEsp(player)
+    if not cache[player] then return end
+    for _, v in pairs(cache[player]) do
+        if typeof(v) == "table" then
+            for _, l in pairs(v) do l:Remove() end
+        else
+            v:Remove()
+        end
+    end
+    cache[player] = nil
+end
 
-                        if dist < nearestMagnitude and dist <= features.fov then
-                            nearestMagnitude = dist
-                            nearestEnemy = player
-                        end
-                    end
+--// Update ESP
+local function updateEsp()
+    for player, esp in pairs(cache) do
+        local char = player.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+
+        if char and hum and root and ESP_SETTINGS.Enabled then
+            local pos, onScreen = camera:WorldToViewportPoint(root.Position)
+            if onScreen then
+                local sizeY = (camera:WorldToViewportPoint(root.Position - Vector3.new(0,3,0)).Y -
+                               camera:WorldToViewportPoint(root.Position + Vector3.new(0,2.5,0)).Y)
+                local boxSize = Vector2.new(sizeY * 1.4, sizeY * 1.9)
+                local boxPos = Vector2.new(pos.X - boxSize.X/2, pos.Y - boxSize.Y/2)
+
+                -- Box
+                if ESP_SETTINGS.ShowBox then
+                    esp.box.Size = boxSize
+                    esp.box.Position = boxPos
+                    esp.box.Color = ESP_SETTINGS.BoxColor
+                    esp.box.Visible = true
+
+                    esp.boxOutline.Size = boxSize
+                    esp.boxOutline.Position = boxPos
+                    esp.boxOutline.Color = ESP_SETTINGS.BoxOutlineColor
+                    esp.boxOutline.Visible = true
+                else
+                    esp.box.Visible = false
+                    esp.boxOutline.Visible = false
+                end
+
+                -- Filled box
+                if ESP_SETTINGS.ShowFilledBox then
+                    esp.filledBox.Size = boxSize
+                    esp.filledBox.Position = boxPos
+                    esp.filledBox.Color = ESP_SETTINGS.FilledBoxColor
+                    esp.filledBox.Visible = true
+                else
+                    esp.filledBox.Visible = false
+                end
+
+                -- Name
+                if ESP_SETTINGS.ShowName then
+                    esp.name.Text = player.Name
+                    esp.name.Position = Vector2.new(boxPos.X + boxSize.X/2, boxPos.Y - 14)
+                    esp.name.Color = ESP_SETTINGS.NameColor
+                    esp.name.Visible = true
+                else
+                    esp.name.Visible = false
+                end
+
+                -- Distance
+                if ESP_SETTINGS.ShowDistance and localPlayer.Character then
+                    local dist = (localPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude
+                    esp.distance.Text = string.format("%.1f studs", dist)
+                    esp.distance.Position = Vector2.new(boxPos.X + boxSize.X/2, boxPos.Y + boxSize.Y + 4)
+                    esp.distance.Color = ESP_SETTINGS.DistanceColor
+                    esp.distance.Visible = true
+                else
+                    esp.distance.Visible = false
+                end
+
+                -- Health bar
+                if ESP_SETTINGS.ShowHealth then
+                    local hpPercent = hum.Health / hum.MaxHealth
+                    local hpHeight = boxSize.Y * hpPercent
+
+                    esp.healthOutline.From = Vector2.new(boxPos.X - 6, boxPos.Y + boxSize.Y)
+                    esp.healthOutline.To = Vector2.new(boxPos.X - 6, boxPos.Y)
+                    esp.healthOutline.Color = ESP_SETTINGS.HealthOutlineColor
+                    esp.healthOutline.Visible = true
+
+                    esp.health.From = Vector2.new(boxPos.X - 6, boxPos.Y + boxSize.Y)
+                    esp.health.To = Vector2.new(boxPos.X - 6, boxPos.Y + boxSize.Y - hpHeight)
+                    esp.health.Color = ESP_SETTINGS.HealthBasedColor
+                        and ESP_SETTINGS.HealthLowColor:Lerp(ESP_SETTINGS.HealthHighColor, hpPercent)
+                        or ESP_SETTINGS.HealthColor
+                    esp.health.Visible = true
+                else
+                    esp.health.Visible = false
+                    esp.healthOutline.Visible = false
+                end
+            end
+        else
+            for _, d in pairs(esp) do
+                if typeof(d) ~= "table" then
+                    d.Visible = false
                 end
             end
         end
     end
-
-    return nearestEnemy
 end
 
--- Ray hook
-local mt = getrawmetatable(game)
-setreadonly(mt, false)
-
-local oldNamecall = mt.__namecall
-mt.__namecall = newcclosure(function(...)
-    local method = getnamecallmethod()
-    local args = { ... }
-
-    if string.find(method, "Ray") and target then
-        args[2] = Ray.new(
-            Camera.CFrame.Position,
-            (target +
-            Vector3.new(
-                0,
-                (Camera.CFrame.Position - target).Magnitude / 500,
-                0
-            ) - Camera.CFrame.Position).Unit * 500
-        )
+--// Player handlers
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= localPlayer then
+        createEsp(p)
     end
+end
 
-    return oldNamecall(unpack(args))
-end)
-
--- Main loop
-RunService:BindToRenderStep("SilentAim", 1, function()
-    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-        and features.silentaim
-        and LocalPlayer.Character
-        and LocalPlayer.Character:FindFirstChild("Humanoid")
-        and LocalPlayer.Character.Humanoid.Health > 0 then
-
-        local enemy = getnearest()
-        if enemy and enemy.Character and enemy.Character:FindFirstChild("Head") then
-            target = enemy.Character.Head.Position
-        end
-    else
-        target = nil
+Players.PlayerAdded:Connect(function(p)
+    if p ~= localPlayer then
+        createEsp(p)
     end
 end)
+
+Players.PlayerRemoving:Connect(removeEsp)
+
+RunService.RenderStepped:Connect(updateEsp)
+
+return ESP_SETTINGS
